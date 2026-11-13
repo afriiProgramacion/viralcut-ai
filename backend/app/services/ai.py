@@ -13,6 +13,7 @@ def _openai_key(db_val: str | None = None) -> str:
 DEFAULT_MODELS = {
     "anthropic": "claude-sonnet-4-20250514",
     "openai": "gpt-4o-mini",
+    "ollama": "llama3.2",
 }
 
 
@@ -26,6 +27,8 @@ def resolve_provider(cfg: dict) -> tuple[str, str, str]:
         key = _anthropic_key(cfg.get("anthropic_api_key"))
     elif provider == "openai":
         key = _openai_key(cfg.get("openai_api_key"))
+    elif provider == "ollama":
+        key = "local"  # Ollama needs no API key
     else:
         key = ""
     return provider, model, key
@@ -33,8 +36,27 @@ def resolve_provider(cfg: dict) -> tuple[str, str, str]:
 
 async def chat(cfg: dict, system: str, user: str, max_tokens: int = 4000) -> str:
     provider, model, key = resolve_provider(cfg)
-    if provider == "local" or not key:
-        raise RuntimeError("No AI API key configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY in .env or settings.")
+    if provider not in ("ollama",) and (provider == "local" or not key):
+        raise RuntimeError("No AI API key configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY in .env or settings, or use Ollama.")
+    if provider == "ollama":
+        base = (cfg.get("ollama_url") or "http://localhost:11434").rstrip("/")
+        async with httpx.AsyncClient(timeout=300) as c:
+            r = await c.post(
+                f"{base}/api/chat",
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                    "stream": False,
+                    "options": {"temperature": 0.4},
+                },
+            )
+        if r.status_code != 200:
+            raise RuntimeError(f"Ollama error {r.status_code}: {r.text[:500]}")
+        data = r.json()
+        return data.get("message", {}).get("content", "")
     if provider == "anthropic":
         async with httpx.AsyncClient(timeout=300) as c:
             r = await c.post(

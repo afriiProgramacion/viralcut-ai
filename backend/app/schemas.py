@@ -105,6 +105,8 @@ class SettingsIn(BaseModel):
     whisper_device: Optional[str] = None
     whisper_compute_type: Optional[str] = None
     max_upload_mb: Optional[int] = None
+    ollama_url: Optional[str] = None
+    ollama_model: Optional[str] = None
 
 
 class SettingsOut(BaseModel):
@@ -118,3 +120,5 @@ class SettingsOut(BaseModel):
     has_openai: bool
     anthropic_api_key_masked: str
     openai_api_key_masked: str
+    ollama_url: str
+    ollama_model: str

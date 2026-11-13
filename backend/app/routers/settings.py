@@ -43,6 +43,8 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
     wd = await _get(db, "whisper_device", settings.whisper_device)
     wc = await _get(db, "whisper_compute_type", settings.whisper_compute_type)
     mu = await _get(db, "max_upload_mb", str(settings.max_upload_mb))
+    ou = await _get(db, "ollama_url", "http://localhost:11434")
+    om = await _get(db, "ollama_model", "llama3.2")
     return SettingsOut(
         ai_provider=provider,
         ai_model=model,
@@ -54,6 +56,8 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
         has_openai=bool(openai),
         anthropic_api_key_masked=mask(anthropic),
         openai_api_key_masked=mask(openai),
+        ollama_url=ou,
+        ollama_model=om,
     )
 
 
@@ -75,6 +79,10 @@ async def update_settings(body: SettingsIn, db: AsyncSession = Depends(get_db)):
         await _set(db, "whisper_compute_type", body.whisper_compute_type)
     if body.max_upload_mb is not None:
         await _set(db, "max_upload_mb", str(body.max_upload_mb))
+    if body.ollama_url is not None:
+        await _set(db, "ollama_url", body.ollama_url)
+    if body.ollama_model is not None:
+        await _set(db, "ollama_model", body.ollama_model)
     await db.commit()
     return {"ok": True}
 

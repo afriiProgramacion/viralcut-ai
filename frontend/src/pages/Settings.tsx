@@ -11,6 +11,8 @@ export default function SettingsPage() {
   const [openai, setOpenai] = useState('')
   const [provider, setProvider] = useState('anthropic')
   const [model, setModel] = useState('')
+  const [ollamaUrl, setOllamaUrl] = useState('http://localhost:11434')
+  const [ollamaModel, setOllamaModel] = useState('llama3.2')
   const [whisperModel, setWhisperModel] = useState('small')
   const [whisperDevice, setWhisperDevice] = useState('cpu')
   const [computeType, setComputeType] = useState('int8')
@@ -21,6 +23,8 @@ export default function SettingsPage() {
     if (data) {
       setProvider(data.ai_provider)
       setModel(data.ai_model || '')
+      setOllamaUrl(data.ollama_url || 'http://localhost:11434')
+      setOllamaModel(data.ollama_model || 'llama3.2')
       setWhisperModel(data.whisper_model)
       setWhisperDevice(data.whisper_device)
       setComputeType(data.whisper_compute_type)
@@ -33,6 +37,8 @@ export default function SettingsPage() {
       const body: any = {
         ai_provider: provider,
         ai_model: model,
+        ollama_url: ollamaUrl,
+        ollama_model: ollamaModel,
         whisper_model: whisperModel,
         whisper_device: whisperDevice,
         whisper_compute_type: computeType,
@@ -65,6 +71,7 @@ export default function SettingsPage() {
               <select value={provider} onChange={(e) => setProvider(e.target.value)} className="w-full bg-[#0B0F1A] border border-[#1F2737] rounded-lg px-3 py-2 text-sm">
                 <option value="anthropic">Anthropic (Claude)</option>
                 <option value="openai">OpenAI</option>
+                <option value="ollama">Ollama (local, free)</option>
               </select>
             </div>
             <div>
@@ -86,6 +93,27 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {provider === 'ollama' && (
+          <div className="rounded-xl border border-[#1F2737] bg-[#111622] p-5">
+            <h2 className="text-sm font-semibold mb-3">Ollama (local LLM)</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-[#8A93A6] block mb-1">Server URL</label>
+                <input value={ollamaUrl} onChange={(e) => setOllamaUrl(e.target.value)} placeholder="http://localhost:11434"
+                  className="w-full bg-[#0B0F1A] border border-[#1F2737] rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-[#8A93A6] block mb-1">Model</label>
+                <input value={ollamaModel} onChange={(e) => setOllamaModel(e.target.value)} placeholder="llama3.2"
+                  className="w-full bg-[#0B0F1A] border border-[#1F2737] rounded-lg px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div className="text-xs text-[#8A93A6] mt-2">
+              Install Ollama from https://ollama.com, then run: <code className="text-[#7C5CFF]">ollama pull llama3.2</code>
+            </div>
+          </div>
+        )}
 
         <div className="rounded-xl border border-[#1F2737] bg-[#111622] p-5">
           <h2 className="text-sm font-semibold mb-3">Whisper (local transcription)</h2>
