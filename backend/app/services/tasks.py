@@ -84,12 +84,12 @@ async def run_analysis_job(job_id: str):
     try:
         await _set_job(job_id, status="running", stage="Extracting audio", progress=5, message="Extracting audio")
         audio_path = temp_dir() / f"{video_id}.wav"
-        V.extract_audio(video_path, audio_path)
+        await asyncio.to_thread(V.extract_audio, video_path, audio_path)
 
         await _set_job(job_id, stage="Transcribing", progress=15, message="Transcribing conversation")
         tcfg = cfg
-        tr = transcribe(audio_path, language=language, model_size=tcfg.get("whisper_model"),
-                        device=tcfg.get("whisper_device"), compute_type=tcfg.get("whisper_compute_type"))
+        tr = await asyncio.to_thread(transcribe, audio_path, language=language, model_size=tcfg.get("whisper_model"),
+                                     device=tcfg.get("whisper_device"), compute_type=tcfg.get("whisper_compute_type"))
         # save transcription
         async with SessionLocal() as db:
             existing = (await db.execute(select(Transcription).where(Transcription.video_id == video_id))).scalars().first()
@@ -122,11 +122,11 @@ async def run_analysis_job(job_id: str):
                            message=f"Generating clip {idx+1}/{total}")
             out_path = cdir / f"clip_{idx+1:02d}.mp4"
             # reframe + cut
-            reframe_clip(video_path, c["start"], c["end"], out_path)
+            await asyncio.to_thread(reframe_clip, video_path, c["start"], c["end"], out_path)
             # thumbnail
             thumb_path = tdir / f"clip_{idx+1:02d}.jpg"
             try:
-                V.thumbnail(out_path, thumb_path, at=1.0)
+                await asyncio.to_thread(V.thumbnail, out_path, thumb_path, at=1.0)
             except Exception:
                 pass
             # subtitles words
@@ -136,9 +136,9 @@ async def run_analysis_job(job_id: str):
             # Burn default style for final clip file
             try:
                 srt = temp_dir() / f"{project_id}_clip{idx+1}.srt"
-                V.make_srt(subs, srt)
+                await asyncio.to_thread(V.make_srt, subs, srt)
                 burned = cdir / f"clip_{idx+1:02d}_sub.mp4"
-                V.burn_subtitles(out_path, srt, burned, style=subtitle_style)
+                await asyncio.to_thread(V.burn_subtitles, out_path, srt, burned, style=subtitle_style)
                 # replace base with burned
                 out_path.unlink(missing_ok=True)
                 burned.rename(out_path)
