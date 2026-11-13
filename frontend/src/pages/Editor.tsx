@@ -23,6 +23,8 @@ export default function Editor() {
   const [style, setStyle] = useState('hormozi')
   const [subs, setSubs] = useState<Clip['subtitles']>([])
   const [dirty, setDirty] = useState(false)
+  const [reframeMode, setReframeMode] = useState('face')
+  const [zoom, setZoom] = useState(1.0)
 
   useEffect(() => {
     if (clip) {
@@ -47,7 +49,7 @@ export default function Editor() {
 
   const exportMut = useMutation({
     mutationFn: async () => {
-      await api.post(`/clips/${clipId}/export`)
+      await api.post(`/clips/${clipId}/export`, null, { params: { reframe_mode: reframeMode, zoom } })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clip', clipId] })
@@ -153,6 +155,33 @@ export default function Editor() {
               className="w-full bg-[#0B0F1A] border border-[#1F2737] rounded-lg px-3 py-2 text-sm">
               {STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
+          </div>
+
+          <div className="rounded-xl border border-[#1F2737] bg-[#111622] p-4">
+            <label className="text-xs text-[#8A93A6] block mb-2">Visualización (encuadre)</label>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="text-[10px] text-[#5A6378]">Modo</label>
+                <select value={reframeMode} onChange={(e) => setReframeMode(e.target.value)}
+                  className="w-full bg-[#0B0F1A] border border-[#1F2737] rounded-lg px-3 py-2 text-sm">
+                  <option value="face">Seguir sujeto (cara)</option>
+                  <option value="center">Centrado</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-[#5A6378]">Zoom ({zoom.toFixed(1)}x)</label>
+                <input type="range" min="1" max="1.6" step="0.1" value={zoom} onChange={(e) => setZoom(+e.target.value)}
+                  className="w-full" />
+              </div>
+            </div>
+            <button
+              onClick={() => exportMut.mutate()}
+              disabled={exportMut.isPending}
+              className="w-full py-2 rounded-lg bg-gradient-to-r from-[#7C5CFF] to-[#3B82F6] text-sm font-medium disabled:opacity-50"
+            >
+              {exportMut.isPending ? 'Regenerando...' : 'Regenerar visualización'}
+            </button>
+            <div className="text-[10px] text-[#8A93A6] mt-1">Re-encodea el clip con el encuadre elegido. Usa "Centrado" si el sujeto queda mal encuadrado.</div>
           </div>
 
           <div className="rounded-xl border border-[#1F2737] bg-[#111622] p-4">

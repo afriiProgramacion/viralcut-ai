@@ -91,7 +91,7 @@ async def thumb(cid: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{cid}/export")
-async def export_clip(cid: str, db: AsyncSession = Depends(get_db)):
+async def export_clip(cid: str, reframe_mode: str = "face", zoom: float = 1.0, db: AsyncSession = Depends(get_db)):
     # re-burn with current subtitles/style and trim
     c = await db.get(Clip, cid)
     if not c:
@@ -110,7 +110,7 @@ async def export_clip(cid: str, db: AsyncSession = Depends(get_db)):
     # trim + reframe
     V.reframe_clip(orig, c.start, c.end, out) if False else None
     from ..services.reframing import reframe_clip
-    reframe_clip(orig, c.start, c.end, out)
+    reframe_clip(orig, c.start, c.end, out, mode=reframe_mode, zoom=zoom)
     # burn subs
     if c.subtitles:
         try:

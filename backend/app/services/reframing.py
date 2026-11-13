@@ -48,7 +48,7 @@ def detect_face_center(video_path: Path, start: float, end: float) -> tuple[floa
     return (statistics.median(xs), statistics.median(ys))
 
 
-def compute_crop(video_path: Path, start: float, end: float) -> tuple[int, int, int, int]:
+def compute_crop(video_path: Path, start: float, end: float, mode: str = "face", zoom: float = 1.0) -> tuple[int, int, int, int]:
     """Return (crop_w, crop_h, x, y) in source pixels for 9:16 output."""
     cap = cv2.VideoCapture(str(video_path))
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -66,11 +66,22 @@ def compute_crop(video_path: Path, start: float, end: float) -> tuple[int, int, 
         # taller: crop height
         crop_w = w
         crop_h = int(w / target_aspect)
-    center = detect_face_center(video_path, start, end)
+    if mode == "face":
+        center = detect_face_center(video_path, start, end)
+    else:
+        center = None
     if center is None:
         cx, cy = 0.5, 0.5
     else:
         cx, cy = center
+    # apply zoom (zoom>1 => smaller crop => closer)
+    zoom = max(1.0, float(zoom))
+    crop_w = max(100, int(crop_w / zoom))
+    crop_h = max(100, int(crop_h / zoom))
+    if crop_w > w:
+        crop_w = w
+    if crop_h > h:
+        crop_h = h
     x = int(cx * w - crop_w / 2)
     # Place face in upper third to avoid cutting the head
     y = int(cy * h - crop_h * 0.35)
@@ -79,12 +90,12 @@ def compute_crop(video_path: Path, start: float, end: float) -> tuple[int, int, 
     return (crop_w, crop_h, x, y)
 
 
-def reframe_clip(src: Path, start: float, end: float, out: Path) -> Path:
+def reframe_clip(src: Path, start: float, end: float, out: Path, mode: str = "face", zoom: float = 1.0) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
     from .video import probe
     info = probe(src)
     dur = max(0.1, end - start)
-    crop_w, crop_h, x, y = compute_crop(src, start, end)
+    crop_w, crop_h, x, y = compute_crop(src, start, end, mode=mode, zoom=zoom)
     w, h = settings.output_width, settings.output_height
     if crop_w <= 0 or crop_h <= 0:
         vf = f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}"
