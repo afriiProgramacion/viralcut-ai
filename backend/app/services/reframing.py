@@ -72,7 +72,8 @@ def compute_crop(video_path: Path, start: float, end: float) -> tuple[int, int, 
     else:
         cx, cy = center
     x = int(cx * w - crop_w / 2)
-    y = int(cy * h - crop_h / 2)
+    # Place face in upper third to avoid cutting the head
+    y = int(cy * h - crop_h * 0.35)
     x = max(0, min(w - crop_w, x))
     y = max(0, min(h - crop_h, y))
     return (crop_w, crop_h, x, y)

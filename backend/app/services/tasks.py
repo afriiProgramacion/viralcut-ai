@@ -146,7 +146,8 @@ async def run_analysis_job(job_id: str):
                 pass
             # subtitles words
             words = [w for w in tr["words"] if w["start"] >= c["start"] - 0.1 and w["end"] <= c["end"] + 0.1]
-            subs = _group_words(words, c["start"])
+            # TikTok-style: 1-3 words per cue for punchy captions
+            subs = _group_words(words, c["start"], group_size=2)
             # burn subtitles into a separate exported file? We'll keep base clip reframed and store subs.
             # Burn default style for final clip file
             # Subtitles are kept as data; burning is deferred to export to save time.

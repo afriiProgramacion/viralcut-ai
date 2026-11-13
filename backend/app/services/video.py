@@ -97,19 +97,19 @@ def burn_subtitles(src: Path, srt_path: Path, out: Path, style: str = "hormozi")
     out.parent.mkdir(parents=True, exist_ok=True)
     # Build force_style based on preset
     styles = {
-        "hormozi": "FontName=Arial,FontSize=14,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H80000000,BorderStyle=3,Outline=2,Shadow=0,Alignment=2,MarginV=60",
-        "mrbeast": "FontName=Arial,FontSize=16,Bold=1,PrimaryColour=&H0000FFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=3,Shadow=0,Alignment=2,MarginV=70",
-        "minimal": "FontName=Arial,FontSize=12,Bold=0,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,Alignment=2,MarginV=50",
-        "karaoke": "FontName=Arial,FontSize=14,Bold=1,PrimaryColour=&H0000FF00,OutlineColour=&H00000000,BorderStyle=3,Outline=2,Shadow=0,Alignment=2,MarginV=60",
-        "bold_yellow": "FontName=Arial,FontSize=15,Bold=1,PrimaryColour=&H0000FFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=3,Shadow=0,Alignment=2,MarginV=65",
-        "clean_podcast": "FontName=Arial,FontSize=12,Bold=0,PrimaryColour=&H00FFFFFF,OutlineColour=&H00222222,BorderStyle=1,Outline=1,Shadow=0,Alignment=2,MarginV=40",
+        "hormozi": "FontName=Arial,FontSize=18,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H80000000,BorderStyle=3,Outline=3,Shadow=1,Alignment=2,MarginV=90",
+        "mrbeast": "FontName=Arial,FontSize=20,Bold=1,PrimaryColour=&H0000FFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=4,Shadow=1,Alignment=2,MarginV=100",
+        "minimal": "FontName=Arial,FontSize=16,Bold=0,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=70",
+        "karaoke": "FontName=Arial,FontSize=18,Bold=1,PrimaryColour=&H0000FF00,OutlineColour=&H00000000,BorderStyle=3,Outline=3,Shadow=1,Alignment=2,MarginV=90",
+        "bold_yellow": "FontName=Arial,FontSize=19,Bold=1,PrimaryColour=&H0000FFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=4,Shadow=1,Alignment=2,MarginV=95",
+        "clean_podcast": "FontName=Arial,FontSize=16,Bold=0,PrimaryColour=&H00FFFFFF,OutlineColour=&H00222222,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=60",
     }
     fs = styles.get(style, styles["hormozi"])
     # escape path for ffmpeg subtitles filter
     sp = str(srt_path).replace("\\", "/").replace(":", "\\:")
     vf = f"subtitles='{sp}':force_style='{fs}'"
     cmd = [ffmpeg_path(), "-y", "-i", str(src), "-vf", vf,
-           "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+           "-c:v", "libx264", "-preset", "medium", "-crf", "18",
            "-c:a", "copy", "-movflags", "+faststart", str(out)]
     r = _run(cmd, timeout=600)
     if r.returncode != 0:
