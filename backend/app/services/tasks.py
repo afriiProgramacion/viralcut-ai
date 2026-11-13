@@ -134,17 +134,8 @@ async def run_analysis_job(job_id: str):
             subs = _group_words(words, c["start"])
             # burn subtitles into a separate exported file? We'll keep base clip reframed and store subs.
             # Burn default style for final clip file
-            try:
-                srt = temp_dir() / f"{project_id}_clip{idx+1}.srt"
-                await asyncio.to_thread(V.make_srt, subs, srt)
-                burned = cdir / f"clip_{idx+1:02d}_sub.mp4"
-                await asyncio.to_thread(V.burn_subtitles, out_path, srt, burned, style=subtitle_style)
-                # replace base with burned
-                out_path.unlink(missing_ok=True)
-                burned.rename(out_path)
-            except Exception as e:
-                # keep base without subs
-                pass
+            # Subtitles are kept as data; burning is deferred to export to save time.
+            pass
             # create clip record
             async with SessionLocal() as db:
                 clip = Clip(

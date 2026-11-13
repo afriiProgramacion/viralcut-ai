@@ -51,7 +51,7 @@ def cut_clip(src: Path, start: float, end: float, out: Path, reframe_plan: dict 
     vf = f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}"
     cmd = [ffmpeg_path(), "-y", "-ss", f"{start:.3f}", "-i", str(src), "-t", f"{dur:.3f}",
            "-vf", vf, "-r", str(settings.target_fps),
-           "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+           "-c:v", "libx264", "-preset", "fast", "-crf", "22",
            "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(out)]
     r = _run(cmd, timeout=600)
     if r.returncode != 0:

@@ -29,7 +29,7 @@ def detect_face_center(video_path: Path, start: float, end: float) -> tuple[floa
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
         ok, frame = cap.read()
         if not ok:
-            t += 0.5
+            t += 1.0
             continue
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4, minSize=(40, 40))
@@ -39,7 +39,7 @@ def detect_face_center(video_path: Path, start: float, end: float) -> tuple[floa
             x, y, fw, fh = f
             xs.append((x + fw / 2) / w)
             ys.append((y + fh / 2) / h)
-        t += 0.5
+        t += 1.0
     cap.release()
     if not xs:
         return None
@@ -91,7 +91,7 @@ def reframe_clip(src: Path, start: float, end: float, out: Path) -> Path:
         vf = f"crop={crop_w}:{crop_h}:{x}:{y},scale={w}:{h}"
     cmd = [ffmpeg_path(), "-y", "-ss", f"{start:.3f}", "-i", str(src), "-t", f"{dur:.3f}",
            "-vf", vf, "-r", str(settings.target_fps),
-           "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+           "-c:v", "libx264", "-preset", "fast", "-crf", "22",
            "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(out)]
     r = _run(cmd, timeout=600)
     if r.returncode != 0:
