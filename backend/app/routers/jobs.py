@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..db import get_db
-from ..models import Job
+from ..models import Job, Project
 from ..schemas import JobOut
+from ..services.tasks import cancel_task
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -30,6 +31,12 @@ async def cancel_job(jid: str, db: AsyncSession = Depends(get_db)):
     j = await db.get(Job, jid)
     if not j:
         raise HTTPException(404, "Job not found")
+    cancel_task(jid)
     j.status = "cancelled"
+    j.message = "Cancelled by user"
+    if j.project_id:
+        p = await db.get(Project, j.project_id)
+        if p:
+            p.status = "cancelled"
     await db.commit()
     return {"ok": True}

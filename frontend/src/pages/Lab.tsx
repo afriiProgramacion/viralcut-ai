@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { Job, Clip } from '../lib/api'
-import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Loader2, CheckCircle2, AlertCircle, XCircle } from 'lucide-react'
 
 const STAGES = [
   'Extracting audio',
@@ -28,11 +28,20 @@ export default function Lab() {
     },
   })
 
+  const qc = useQueryClient()
   const { data: clips = [] } = useQuery<Clip[]>({
     queryKey: ['clips', job?.project_id],
     queryFn: async () => (await api.get(`/clips?project_id=${job?.project_id}`)).data,
     enabled: !!job?.project_id,
     refetchInterval: job?.status === 'running' || job?.status === 'queued' ? 3000 : false,
+  })
+
+  const cancelMut = useMutation({
+    mutationFn: async () => api.post(`/jobs/${jobId}/cancel`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['job', jobId] })
+      navigate('/')
+    },
   })
 
   const progress = job?.progress ?? 0
@@ -74,6 +83,15 @@ export default function Lab() {
             )
           })}
         </div>
+
+        {(job?.status === 'running' || job?.status === 'queued') && (
+          <div className="mt-4">
+            <button onClick={() => cancelMut.mutate()} disabled={cancelMut.isPending}
+              className="px-4 py-2 rounded-lg bg-[#161C2C] border border-[#1F2737] text-sm flex items-center gap-2 hover:bg-red-500/10 hover:border-red-500/30 text-red-300 disabled:opacity-50">
+              <XCircle size={14} /> {cancelMut.isPending ? 'Cancelling...' : 'Cancel project'}
+            </button>
+          </div>
+        )}
 
         {job?.status === 'error' && (
           <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300">

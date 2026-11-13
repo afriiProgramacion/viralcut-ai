@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..db import get_db
-from ..models import Project, Video, Job
+from ..models import Project, Video, Job, Clip
 from ..schemas import ProjectCreate, ProjectOut, VideoOut, UploadConfig
 from ..services.storage import save_upload, safe_filename, project_dir
+from ..services.tasks import cancel_task
 from ..services.video import probe
 from ..config import settings
 
@@ -108,6 +109,67 @@ async def start_analysis(pid: str, cfg: UploadConfig, db: AsyncSession = Depends
     p.last_job_id = job.id
     await db.commit()
     # launch task
+    from ..services.tasks import run_analysis_job
+    import asyncio
+    asyncio.create_task(run_analysis_job(job.id))
+    return {"job_id": job.id}
+
+
+@router.post("/{pid}/cancel")
+async def cancel_project(pid: str, db: AsyncSession = Depends(get_db)):
+    p = await db.get(Project, pid)
+    if not p:
+        raise HTTPException(404, "Project not found")
+    if p.last_job_id:
+        cancel_task(p.last_job_id)
+        j = await db.get(Job, p.last_job_id)
+        if j:
+            j.status = "cancelled"
+            j.message = "Cancelled by user"
+    p.status = "cancelled"
+    await db.commit()
+    return {"ok": True}
+
+
+@router.post("/{pid}/reprocess")
+async def reprocess_project(pid: str, cfg: UploadConfig, db: AsyncSession = Depends(get_db)):
+    p = await db.get(Project, pid)
+    if not p:
+        raise HTTPException(404, "Project not found")
+    if not p.video_id:
+        raise HTTPException(400, "No video uploaded")
+    # cancel running job
+    if p.last_job_id:
+        cancel_task(p.last_job_id)
+        j = await db.get(Job, p.last_job_id)
+        if j and j.status in ("queued", "running"):
+            j.status = "cancelled"
+    # delete existing clips + files
+    from sqlalchemy import select as _select
+    res = await db.execute(_select(Clip).where(Clip.project_id == pid))
+    for c in res.scalars().all():
+        if c.file_path:
+            try:
+                from ..services.storage import abs_from_rel
+                abs_from_rel(c.file_path).unlink(missing_ok=True)
+            except Exception:
+                pass
+        if c.thumb_path:
+            try:
+                from ..services.storage import abs_from_rel
+                abs_from_rel(c.thumb_path).unlink(missing_ok=True)
+            except Exception:
+                pass
+        await db.delete(c)
+    p.config = cfg.model_dump()
+    p.status = "processing"
+    await db.commit()
+    job = Job(project_id=pid, video_id=p.video_id, type="analyze", status="queued", stage="queued", progress=0)
+    db.add(job)
+    await db.commit()
+    await db.refresh(job)
+    p.last_job_id = job.id
+    await db.commit()
     from ..services.tasks import run_analysis_job
     import asyncio
     asyncio.create_task(run_analysis_job(job.id))

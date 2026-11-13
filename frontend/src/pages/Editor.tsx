@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { Clip } from '../lib/api'
 import { useState, useEffect } from 'react'
-import { Download, Save, ArrowLeft } from 'lucide-react'
+import { Download, Save, ArrowLeft, RefreshCw } from 'lucide-react'
 
 const STYLES = ['hormozi', 'mrbeast', 'minimal', 'karaoke', 'bold_yellow', 'clean_podcast']
 
@@ -54,6 +54,22 @@ export default function Editor() {
     },
   })
 
+  const { data: project } = useQuery({
+    queryKey: ['project', clip?.project_id],
+    queryFn: async () => (await api.get(`/projects/${clip?.project_id}`)).data,
+    enabled: !!clip?.project_id,
+  })
+
+  const reprocessMut = useMutation({
+    mutationFn: async () => {
+      const cfg = project?.config || { clip_count: 5, clip_duration: 30, platform: 'tiktok', language: 'auto', subtitle_style: 'hormozi', cut_aggressiveness: 'balanced', priority: 'mixed' }
+      return (await api.post(`/projects/${clip?.project_id}/reprocess`, cfg)).data
+    },
+    onSuccess: (data) => {
+      navigate(`/lab/${data.job_id}`)
+    },
+  })
+
   if (!clip) return <div className="p-8 text-[#8A93A6]">Loading...</div>
 
   return (
@@ -83,6 +99,13 @@ export default function Editor() {
               className="flex-1 py-2 rounded-lg bg-gradient-to-r from-[#7C5CFF] to-[#3B82F6] text-sm font-medium disabled:opacity-50"
             >
               {exportMut.isPending ? 'Exporting...' : 'Re-export'}
+            </button>
+            <button
+              onClick={() => reprocessMut.mutate()}
+              disabled={reprocessMut.isPending}
+              className="flex-1 py-2 rounded-lg bg-[#161C2C] border border-[#1F2737] text-sm flex items-center justify-center gap-2 hover:bg-[#1F2737] disabled:opacity-50"
+            >
+              <RefreshCw size={14} /> {reprocessMut.isPending ? 'Reprocessing...' : 'Reprocess'}
             </button>
           </div>
           <div className="mt-2 text-xs text-[#8A93A6]">

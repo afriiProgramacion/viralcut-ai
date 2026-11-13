@@ -1,9 +1,9 @@
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { Clip } from '../lib/api'
 import { useState } from 'react'
-import { Filter, Download } from 'lucide-react'
+import { Filter, Download, RefreshCw } from 'lucide-react'
 
 const SORTS = [
   { v: 'score', l: 'Highest viral score' },
@@ -18,10 +18,28 @@ export default function Library() {
   const navigate = useNavigate()
   const [sort, setSort] = useState('score')
   const [cat, setCat] = useState('all')
+  const qc = useQueryClient()
 
   const { data: clips = [] } = useQuery<Clip[]>({
     queryKey: ['clips', projectId],
     queryFn: async () => (await api.get(`/clips${projectId ? `?project_id=${projectId}` : ''}`)).data,
+  })
+
+  const { data: project } = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: async () => (await api.get(`/projects/${projectId}`)).data,
+    enabled: !!projectId,
+  })
+
+  const reprocessMut = useMutation({
+    mutationFn: async () => {
+      const cfg = project?.config || { clip_count: 5, clip_duration: 30, platform: 'tiktok', language: 'auto', subtitle_style: 'hormozi', cut_aggressiveness: 'balanced', priority: 'mixed' }
+      return (await api.post(`/projects/${projectId}/reprocess`, cfg)).data
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['clips', projectId] })
+      navigate(`/lab/${data.job_id}`)
+    },
   })
 
   const filtered = clips
@@ -46,9 +64,15 @@ export default function Library() {
           <p className="text-sm text-[#8A93A6] mt-1">{filtered.length} clips</p>
         </div>
         {projectId && (
-          <button onClick={downloadAll} className="px-4 py-2 rounded-lg bg-[#161C2C] border border-[#1F2737] text-sm flex items-center gap-2 hover:bg-[#1F2737]">
-            <Download size={14} /> Download all (ZIP)
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => reprocessMut.mutate()} disabled={reprocessMut.isPending}
+              className="px-4 py-2 rounded-lg bg-[#161C2C] border border-[#1F2737] text-sm flex items-center gap-2 hover:bg-[#1F2737] disabled:opacity-50">
+              <RefreshCw size={14} /> {reprocessMut.isPending ? 'Reprocessing...' : 'Reprocess'}
+            </button>
+            <button onClick={downloadAll} className="px-4 py-2 rounded-lg bg-[#161C2C] border border-[#1F2737] text-sm flex items-center gap-2 hover:bg-[#1F2737]">
+              <Download size={14} /> Download all (ZIP)
+            </button>
+          </div>
         )}
       </div>
 

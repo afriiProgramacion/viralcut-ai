@@ -1,5 +1,19 @@
 import asyncio
 from datetime import datetime
+
+_RUNNING_TASKS: dict[str, asyncio.Task] = {}
+
+
+def register_task(job_id: str, task: asyncio.Task):
+    _RUNNING_TASKS[job_id] = task
+
+
+def cancel_task(job_id: str) -> bool:
+    t = _RUNNING_TASKS.get(job_id)
+    if t is not None and not t.done():
+        t.cancel()
+        return True
+    return False
 from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,6 +68,7 @@ def _cfg_from_env():
 
 
 async def run_analysis_job(job_id: str):
+    register_task(job_id, asyncio.current_task())
     async with SessionLocal() as db:
         job = await db.get(Job, job_id)
         if not job:
@@ -173,6 +188,14 @@ async def run_analysis_job(job_id: str):
                     await db.commit()
         await _set_job(job_id, status="done", stage="Done", progress=100, message="Completed",
                        result={"clip_ids": clip_ids, "count": len(clip_ids)})
+    except asyncio.CancelledError:
+        await _set_job(job_id, status="cancelled", stage="Cancelled", progress=0, message="Cancelled by user")
+        async with SessionLocal() as db:
+            if project_id:
+                p = await db.get(Project, project_id)
+                if p:
+                    p.status = "cancelled"
+        raise
     except Exception as e:
         await _set_job(job_id, status="error", stage="Error", progress=0, error=str(e), message=str(e))
         async with SessionLocal() as db:
@@ -182,6 +205,7 @@ async def run_analysis_job(job_id: str):
                     p.status = "error"
                     await db.commit()
     finally:
+        _RUNNING_TASKS.pop(job_id, None)
         try:
             audio_path.unlink(missing_ok=True)
         except Exception:
