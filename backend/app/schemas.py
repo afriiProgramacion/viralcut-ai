@@ -35,6 +35,11 @@ class VideoOut(BaseModel):
         from_attributes = True
 
 
+class YouTubeDownload(BaseModel):
+    url: str
+    config: Optional[UploadConfig] = None
+
+
 class UploadConfig(BaseModel):
     clip_count: int = 5  # 3,5,10,0 auto
     clip_duration: int = 30  # 15,30,45,60,90

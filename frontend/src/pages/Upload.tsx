@@ -10,6 +10,8 @@ const STYLES = ['hormozi', 'mrbeast', 'minimal', 'karaoke', 'bold_yellow', 'clea
 export default function UploadPage() {
   const navigate = useNavigate()
   const [file, setFile] = useState<File | null>(null)
+  const [mode, setMode] = useState<'file' | 'youtube'>('file')
+  const [ytUrl, setYtUrl] = useState('')
   const [drag, setDrag] = useState(false)
   const [progress, setProgress] = useState(0)
   const [uploading, setUploading] = useState(false)
@@ -65,7 +67,68 @@ export default function UploadPage() {
       <h1 className="text-2xl font-semibold tracking-tight mb-1">New project</h1>
       <p className="text-sm text-[#8A93A6] mb-6">Upload a long video and let AI do the rest.</p>
 
-      {!file ? (
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setMode('file')} className={`px-4 py-2 rounded-lg text-sm border ${mode === 'file' ? 'bg-[#7C5CFF] border-[#7C5CFF] text-white' : 'bg-[#111622] border-[#1F2737] text-[#8A93A6]'}`}>Archivo local</button>
+        <button onClick={() => setMode('youtube')} className={`px-4 py-2 rounded-lg text-sm border ${mode === 'youtube' ? 'bg-[#7C5CFF] border-[#7C5CFF] text-white' : 'bg-[#111622] border-[#1F2737] text-[#8A93A6]'}`}>YouTube URL</button>
+      </div>
+
+      {mode === 'youtube' ? (
+        <div className="rounded-2xl border border-[#1F2737] bg-[#111622] p-5">
+          <label className="text-xs text-[#8A93A6] block mb-1">URL de YouTube</label>
+          <input value={ytUrl} onChange={(e) => setYtUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..."
+            className="w-full bg-[#0B0F1A] border border-[#1F2737] rounded-lg px-3 py-2 text-sm mb-4" />
+
+          {/* config grid same as below */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="text-xs text-[#8A93A6] block mb-1">Clip count</label>
+              <select value={config.clip_count} onChange={(e) => setConfig({ ...config, clip_count: +e.target.value })}
+                className="w-full bg-[#0B0F1A] border border-[#1F2737] rounded-lg px-3 py-2 text-sm">
+                {CLIP_COUNTS.map((n) => <option key={n} value={n}>{n === 0 ? 'Auto' : n}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-[#8A93A6] block mb-1">Target duration</label>
+              <select value={config.clip_duration} onChange={(e) => setConfig({ ...config, clip_duration: +e.target.value })}
+                className="w-full bg-[#0B0F1A] border border-[#1F2737] rounded-lg px-3 py-2 text-sm">
+                {DURATIONS.map((n) => <option key={n} value={n}>{n}s</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-[#8A93A6] block mb-1">Platform</label>
+              <select value={config.platform} onChange={(e) => setConfig({ ...config, platform: e.target.value })}
+                className="w-full bg-[#0B0F1A] border border-[#1F2737] rounded-lg px-3 py-2 text-sm">
+                <option value="tiktok">TikTok</option>
+                <option value="reels">Instagram Reels</option>
+                <option value="shorts">YouTube Shorts</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-[#8A93A6] block mb-1">Subtitle style</label>
+              <select value={config.subtitle_style} onChange={(e) => setConfig({ ...config, subtitle_style: e.target.value })}
+                className="w-full bg-[#0B0F1A] border border-[#1F2737] rounded-lg px-3 py-2 text-sm">
+                {STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {!uploading && (
+            <button onClick={async () => {
+              if (!ytUrl) return
+              setUploading(true); setStatus('Downloading from YouTube...')
+              try {
+                const res = await api.post('/projects/youtube', { url: ytUrl, config })
+                navigate(`/lab/${res.data.job_id}`)
+              } catch (e: any) {
+                setStatus('Error: ' + (e?.response?.data?.detail || e.message))
+              } finally { setUploading(false) }
+            }} className="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#7C5CFF] to-[#3B82F6] text-sm font-medium hover:opacity-90">
+              Download & analyze
+            </button>
+          )}
+          {status && <div className="text-xs text-red-400 mt-2">{status}</div>}
+        </div>
+      ) : !file ? (
         <div
           onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
           onDragLeave={() => setDrag(false)}

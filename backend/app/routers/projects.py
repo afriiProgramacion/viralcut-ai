@@ -5,8 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..db import get_db
 from ..models import Project, Video, Job, Clip
-from ..schemas import ProjectCreate, ProjectOut, VideoOut, UploadConfig
+from ..schemas import ProjectCreate, ProjectOut, VideoOut, UploadConfig, YouTubeDownload
 from ..services.storage import save_upload, safe_filename, project_dir
+import yt_dlp
 from ..services.tasks import cancel_task
 from ..services.video import probe
 from ..config import settings
@@ -174,6 +175,93 @@ async def reprocess_project(pid: str, cfg: UploadConfig, db: AsyncSession = Depe
     import asyncio
     asyncio.create_task(run_analysis_job(job.id))
     return {"job_id": job.id}
+
+
+@router.post("/youtube")
+async def youtube_download(body: YouTubeDownload, db: AsyncSession = Depends(get_db)):
+    import asyncio, shutil
+    from ..schemas import YouTubeDownload as YTD
+    url = body.url.strip()
+    if not url:
+        raise HTTPException(400, "URL required")
+    # create project
+    p = Project(name="YouTube video")
+    db.add(p)
+    await db.commit()
+    await db.refresh(p)
+    dest_dir = settings.uploads_dir / p.id
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    def _download():
+        ydl_opts = {
+            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+            "outtmpl": str(dest_dir / "video.%(ext)s"),
+            "merge_output_format": "mp4",
+            "quiet": True,
+            "no_warnings": True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            return info
+
+    try:
+        info = await asyncio.to_thread(_download)
+    except Exception as e:
+        await db.delete(p)
+        await db.commit()
+        raise HTTPException(400, f"Download failed: {e}")
+
+    # find downloaded file
+    downloaded = None
+    for f in dest_dir.iterdir():
+        if f.suffix.lower() in (".mp4", ".mkv", ".webm", ".mov"):
+            downloaded = f
+            break
+    if not downloaded:
+        await db.delete(p)
+        await db.commit()
+        raise HTTPException(400, "Downloaded file not found")
+
+    fname = safe_filename(downloaded.name)
+    if downloaded.name != fname:
+        newp = dest_dir / fname
+        downloaded.rename(newp)
+        downloaded = newp
+
+    try:
+        inf = probe(downloaded)
+    except Exception as e:
+        downloaded.unlink(missing_ok=True)
+        await db.delete(p)
+        await db.commit()
+        raise HTTPException(400, f"Invalid video: {e}")
+
+    v = Video(project_id=p.id, filename=fname,
+              original_path=str(downloaded.relative_to(settings.data_dir)),
+              size_bytes=downloaded.stat().st_size, duration=inf["duration"],
+              width=inf["width"], height=inf["height"], mime="video/mp4")
+    db.add(v)
+    await db.commit()
+    await db.refresh(v)
+    p.video_id = v.id
+    cfg = body.config.model_dump() if body.config else None
+    if cfg:
+        p.config = cfg
+    p.status = "processing" if cfg else "created"
+    await db.commit()
+
+    if cfg:
+        job = Job(project_id=p.id, video_id=v.id, type="analyze", status="queued", stage="queued", progress=0)
+        db.add(job)
+        await db.commit()
+        await db.refresh(job)
+        p.last_job_id = job.id
+        await db.commit()
+        from ..services.tasks import run_analysis_job
+        asyncio.create_task(run_analysis_job(job.id))
+        return {"project_id": p.id, "video_id": v.id, "job_id": job.id, "title": info.get("title")}
+
+    return {"project_id": p.id, "video_id": v.id, "title": info.get("title")}
 
 
 @router.get("/{pid}/video", response_model=VideoOut)
