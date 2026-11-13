@@ -99,6 +99,7 @@ class ClipEdit(BaseModel):
 class SettingsIn(BaseModel):
     anthropic_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
+    groq_api_key: Optional[str] = None
     ai_provider: Optional[str] = None
     ai_model: Optional[str] = None
     whisper_model: Optional[str] = None
@@ -118,7 +119,9 @@ class SettingsOut(BaseModel):
     max_upload_mb: int
     has_anthropic: bool
     has_openai: bool
+    has_groq: bool
     anthropic_api_key_masked: str
     openai_api_key_masked: str
+    groq_api_key_masked: str
     ollama_url: str
     ollama_model: str

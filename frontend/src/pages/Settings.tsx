@@ -9,6 +9,7 @@ export default function SettingsPage() {
 
   const [anthropic, setAnthropic] = useState('')
   const [openai, setOpenai] = useState('')
+  const [groq, setGroq] = useState('')
   const [provider, setProvider] = useState('anthropic')
   const [model, setModel] = useState('')
   const [ollamaUrl, setOllamaUrl] = useState('http://localhost:11434')
@@ -46,6 +47,7 @@ export default function SettingsPage() {
       }
       if (anthropic) body.anthropic_api_key = anthropic
       if (openai) body.openai_api_key = openai
+      if (groq) body.groq_api_key = groq
       await api.put('/settings', body)
     },
     onSuccess: () => {
@@ -71,6 +73,7 @@ export default function SettingsPage() {
               <select value={provider} onChange={(e) => setProvider(e.target.value)} className="w-full bg-[#0B0F1A] border border-[#1F2737] rounded-lg px-3 py-2 text-sm">
                 <option value="anthropic">Anthropic (Claude)</option>
                 <option value="openai">OpenAI</option>
+                <option value="groq">Groq (free tier, fast)</option>
                 <option value="ollama">Ollama (local, free)</option>
               </select>
             </div>
@@ -89,6 +92,11 @@ export default function SettingsPage() {
             <div>
               <label className="text-xs text-[#8A93A6] block mb-1">OpenAI API key {data?.has_openai && <span className="text-green-400">({data.openai_api_key_masked})</span>}</label>
               <input type="password" value={openai} onChange={(e) => setOpenai(e.target.value)} placeholder="sk-..."
+                className="w-full bg-[#0B0F1A] border border-[#1F2737] rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-[#8A93A6] block mb-1">Groq API key {data?.has_groq && <span className="text-green-400">({data.groq_api_key_masked})</span>}</label>
+              <input type="password" value={groq} onChange={(e) => setGroq(e.target.value)} placeholder="gsk_..."
                 className="w-full bg-[#0B0F1A] border border-[#1F2737] rounded-lg px-3 py-2 text-sm" />
             </div>
           </div>

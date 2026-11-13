@@ -37,6 +37,7 @@ def mask(v: str) -> str:
 async def get_settings(db: AsyncSession = Depends(get_db)):
     anthropic = await _get(db, "anthropic_api_key", settings.anthropic_api_key)
     openai = await _get(db, "openai_api_key", settings.openai_api_key)
+    groq = await _get(db, "groq_api_key", "")
     provider = await _get(db, "ai_provider", settings.ai_provider)
     model = await _get(db, "ai_model", settings.ai_model)
     wm = await _get(db, "whisper_model", settings.whisper_model)
@@ -54,8 +55,10 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
         max_upload_mb=int(mu or settings.max_upload_mb),
         has_anthropic=bool(anthropic),
         has_openai=bool(openai),
+        has_groq=bool(groq),
         anthropic_api_key_masked=mask(anthropic),
         openai_api_key_masked=mask(openai),
+        groq_api_key_masked=mask(groq),
         ollama_url=ou,
         ollama_model=om,
     )
@@ -67,6 +70,8 @@ async def update_settings(body: SettingsIn, db: AsyncSession = Depends(get_db)):
         await _set(db, "anthropic_api_key", body.anthropic_api_key)
     if body.openai_api_key is not None:
         await _set(db, "openai_api_key", body.openai_api_key)
+    if body.groq_api_key is not None:
+        await _set(db, "groq_api_key", body.groq_api_key)
     if body.ai_provider is not None:
         await _set(db, "ai_provider", body.ai_provider)
     if body.ai_model is not None:
